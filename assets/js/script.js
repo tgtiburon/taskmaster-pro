@@ -3,15 +3,20 @@ var tasks = {};
 var createTask = function(taskText, taskDate, taskList) {
   // create elements that make up a task item
   var taskLi = $("<li>").addClass("list-group-item");
+
   var taskSpan = $("<span>")
     .addClass("badge badge-primary badge-pill")
     .text(taskDate);
+
   var taskP = $("<p>")
     .addClass("m-1")
     .text(taskText);
 
   // append span and p element to parent li
   taskLi.append(taskSpan, taskP);
+
+  // check due date
+  auditTask(taskLi);
 
 
   // append to ul list on the page
@@ -44,6 +49,32 @@ var loadTasks = function() {
 var saveTasks = function() {
   localStorage.setItem("tasks", JSON.stringify(tasks));
 };
+
+// because we need to use Moment.js with adding and editing 
+// tasks we made an audit function
+var auditTask = function(taskEl) {
+  
+  // get date from task element
+  var date = $(taskEl).find("span").text().trim();
+
+  // convert to moment object at 5:00 pm (12am + 17 hours)
+  var time = moment(date, "L").set("hour", 17); 
+
+  // remove any old classes from element
+  $(taskEl).removeClass("list-group-item-warning list-group-item-danager");
+
+  // apply new class if task is near/over due date
+  if ( moment().isAfter(time)) {
+    $(taskEl).addClass("list-group-item-danger");
+    // Moment reads left to right. get time, then see if it is less than 2 days out
+  } else if (Math.abs(moment().diff(time, "days")) <= 2)
+  {
+    $(taskEl).addClass("list-group-item-warning");
+
+  }
+  
+
+}; // end auditTask
 
 // user clicked on the paragraph element
 // make a text input box with the task name to 
@@ -108,7 +139,7 @@ $(".list-group").on("blur", "textarea", function() {
 
 // add eventlistener
 
-// due date was clicked
+// due date was clicked of existing task
 $(".list-group").on("click", "span", function() {
   // get current text
   var date = $(this)
@@ -125,6 +156,15 @@ $(".list-group").on("click", "span", function() {
 
     $(this).replaceWith(dateInput);
 
+    // add the jQuery UI datepicker
+    dateInput.datepicker( {
+      minDate: 1,
+      onClose: function() {
+        // when calendar is closed, force a "change" event on the 'dateInput'
+        $(this).trigger("change");
+      }
+    });// end dateInput
+
     //automatically focus on new element
     dateInput.trigger("focus");
 
@@ -134,7 +174,8 @@ $(".list-group").on("click", "span", function() {
 
 // lets convert it back once the user clicks outside
 // value of date was changed
-$(".list-group").on("blur", "input[type='text']", function() {
+// We will "change" for the datepicker
+$(".list-group").on("change", "input[type='text']", function() {
   //get current text
   var date = $(this)
     .val()
@@ -163,9 +204,17 @@ $(".list-group").on("blur", "input[type='text']", function() {
   //replace input with span element
   $(this).replaceWith(taskSpan);
 
+  // Pass this task's <li> element to auditTask() to check new due date
+  // and color it appropriately.
+  auditTask($(taskSpan).closest(".list-group-item"));
+
 });// end "list-group" blur
 
-
+// convert text field into a jquery date picker
+$("#modalDueDate").datepicker({
+  // force user to select a future date
+  minDate: 1 // 1 day in the future
+});
 
 
 
